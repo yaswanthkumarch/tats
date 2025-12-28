@@ -1,0 +1,59 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Prepare SSH key from GitHub Secret
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+        shell: bash
+
+      # Step 3: Deploy via SSH
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 72.61.237.199
+          username: sarthakedge1
+          key_path: ~/.ssh/id_ed25519
+          script: |
+            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+            BACKUP_DIR=/home/sarthakedge1/htdocs/beta.sarthakedge.com_backup_$TIMESTAMP
+
+            # Backup existing site
+            cp -r /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code $BACKUP_DIR
+
+            # Deploy new code
+            rsync -avz --delete --exclude=".git" --exclude="node_modules" ./ /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/
+
+            # Set ownership and permissions
+            chown -R sarthakedge1:sarthakedge1 /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code
+            find /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code -type d -exec chmod 755 {} \;
+            find /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code -type f -exec chmod 644 {} \;
+
+            # Laravel storage & cache permissions
+            chmod -R 775 /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/storage
+            chmod -R 775 /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/bootstrap/cache
+
+            # Clear cache and logs
+            rm -rf /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/storage/framework/cache/*
+            rm -rf /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/storage/framework/views/*
+            rm -rf /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/storage/logs/*.log
+            rm -rf /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/tmp/*
+            rm -rf /home/sarthakedge1/htdocs/beta.sarthakedge.com/php_code/.cache/*
+
+            # Restart PHP-FPM
+            sudo systemctl restart php8.1-fpm
