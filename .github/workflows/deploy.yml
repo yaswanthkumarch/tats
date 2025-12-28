@@ -14,21 +14,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Prepare SSH key from GitHub Secret
-      - name: Prepare SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-        shell: bash
-
-      # Step 3: Deploy via SSH
+      # Step 2: Deploy via SSH using GitHub secret directly
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
         with:
           host: 72.61.237.199
           username: sarthakedge1
-          key_path: ~/.ssh/id_ed25519
+          key: ${{ secrets.SSH_KEY }}      # <-- use secret directly
           script: |
             TIMESTAMP=$(date +"%Y%m%d%H%M%S")
             BACKUP_DIR=/home/sarthakedge1/htdocs/beta.sarthakedge.com_backup_$TIMESTAMP
